@@ -1,0 +1,23 @@
+{
+  "name": "MS5611",
+  "version": "0.0.1",
+  "description": "MS5611 for HIT Rocket team",
+  "keywords": "MS5611, CADC, CAUDC, HIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sephony/MS5611.git",
+    "branch": "main"
+  },
+  "authors": [
+    {
+      "name": "sephony",
+      "email": "3266546058@qq.com",
+      "url": "https://github.com/sephony",
+      "maintainer": true
+    }
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/sephony/MS5611",
+  "frameworks": ["arduino", "espidf"],
+  "platforms": ["esp32s2", "esp32s3"]
+}

@@ -1,7 +1,7 @@
-#pragma once
+#ifndef MS5611_H
+#define MS5611_H
 
-#include "Arduino.h"
-#include "Wire.h"
+#include "MS5611_Base.h"
 
 //  BREAKOUT  MS5611  aka  GY63 - see datasheet
 //
@@ -18,8 +18,8 @@
 //
 //  PS to VCC  ==>  I2C  (GY-63 board has internal pull up, so not needed)
 //  PS to GND  ==>  SPI
-//  CS to VCC  ==>  0x76
-//  CS to GND  ==>  0x77
+//  CS to VCC  ==>  0x76 (0b1110110)
+//  CS to GND  ==>  0x77 (0b1110111)
 
 /*
  ******************************************************************************
@@ -40,7 +40,7 @@
  ******************************************************************************
  *	计算温度
  *
- *	dT		实际温度与参考温度之差	dT=D2-C5*2^8			int64_t
+ *	dT		实际温度与参考温度之差	dT=D2-C5*2^8			int32_t
  *	TEMP	实际温度				TEMP=2000+dT*C6/2^23	int32_t	2007(20.07℃)
  ******************************************************************************
  *	计算温度补偿压力
@@ -50,128 +50,53 @@
  *	P		温度补偿压力		P=(D1*SENS/2^21-OFF)/2^15	int32_t	100009(1000.09mbar=100kPa)
  ******************************************************************************
  */
-#define MS5611_LIB_VERSION (F("0.3.9"))
 
-#ifndef MS5611_DEFAULT_ADDRESS
-#define MS5611_DEFAULT_ADDRESS 0x77
-#endif
-
-#define MS5611_READ_OK 0
-#define MS5611_ERROR_2 2  //  low level I2C error
-#define MS5611_NOT_READ -999
-
-#define MS5611_CMD_READ_ADC 0x00
-#define MS5611_CMD_READ_PROM 0xA0
-#define MS5611_CMD_RESET 0x1E
-#define MS5611_CMD_CONVERT_D1 0x40
-#define MS5611_CMD_CONVERT_D2 0x50
-
-enum osr_t : int {
-    OSR_ULTRA_LOW = 256,   //  1 millis    Default = backwards compatible
-    OSR_LOW = 512,         //  2 millis
-    OSR_STANDARD = 1024,   //  3 millis
-    OSR_HIGH = 2048,       //  5 millis
-    OSR_ULTRA_HIGH = 4096  // 10 millis
-};
-
-enum h_mode : int {
-    ONLY_PRESSURE = 0,
-    MIXED = 1
-};
+#define MS5611_LIB_VERSION (F("0.0.1-alpha"))
 
 class MS5611 {
 public:
-    explicit MS5611(uint8_t deviceAddress = MS5611_DEFAULT_ADDRESS);
+    MS5611(MS5611_Base& ms5611_xxx) : _ms5611(ms5611_xxx) {}
 
-#if defined(ESP8266) || defined(ESP32)
-    bool begin(uint8_t sda, uint8_t scl, TwoWire *wire = &Wire);
-#endif
-    bool begin(TwoWire *wire = &Wire);
-    bool isConnected();
+    bool begin() { return _ms5611.begin(); };
+    bool isConnected() { return _ms5611.isConnected(); };
 
-    //       reset command + get constants
-    //       mathMode = 0 (default), 1 = factor 2 fix.
-    //       returns false if ROM constants are 0;
-    bool reset(uint8_t mathMode = 0);
+    bool reset() { return _ms5611.reset(); };
 
-    //  the actual reading of the sensor;
-    //  returns MS5611_READ_OK upon success
-    int read(osr_t oversamplingRate);
-    //  wrapper, uses the preset oversampling rate.
-    inline int read() { return read(_overSamplingRate); };
+    int read(osr_t oversamplingRate) { return _ms5611.read(oversamplingRate); };
+    inline int read() { return _ms5611.read(); };
 
-    //  sets oversampling to a value between 8 and 12
-    void setOversampling(osr_t overSamplingRate) { _overSamplingRate = overSamplingRate; };
+    osr_t getOversampling() const { return _ms5611.getOversampling(); };
 
-    //  oversampling rate is in osr_t
-    osr_t getOversampling() const { return _overSamplingRate; };
+    float getTemperature() const { return _ms5611.getTemperature(); };
 
-    //  temperature is in ²C
-    float getTemperature() const { return _temperature; };
+    float getPressure() const { return _ms5611.getPressure(); };
 
-    //  pressure is in mBar
-    float getPressure() const { return _pressure; };
+    float getHeight(h_mode mode = ONLY_PRESSURE) const { return _ms5611.getHeight(mode); };
 
-    float getHeight(h_mode mode = ONLY_PRESSURE) const;
-    //  OFFSET - 0.3.6
-    void setPressureOffset(float offset = 0) { _pressureOffset = offset; };
-    float getPressureOffset() { return _pressureOffset; };
-    void setTemperatureOffset(float offset = 0) { _temperatureOffset = offset; };
-    float getTemperatureOffset() { return _temperatureOffset; };
+    float getTemperatureOffset() { return _ms5611.getTemperatureOffset(); };
 
-    //  to check for failure
-    int getLastResult() const { return _result; };
+    float getPressureOffset() { return _ms5611.getPressureOffset(); };
 
-    //  last time in millis() when the sensor has been read.
-    uint32_t lastRead() const { return _lastRead; };
+    bool getCompensation() { return _ms5611.getCompensation(); };
 
-    //       _deviceID is a SHIFT XOR merge of 7 PROM registers, reasonable unique
-    uint32_t getDeviceID() const { return _deviceID; };
+    void setOversampling(osr_t overSamplingRate) { _ms5611.setOversampling(overSamplingRate); };
 
-    void setCompensation(bool flag = true) { _compensation = flag; };
-    bool getCompensation() { return _compensation; };
+    void setPressureOffset(float offset = 0) { _ms5611.setPressureOffset(offset); };
 
-    //  develop functions.
-    /*
-    void     setAddress(uint8_t address) { _address = address; };  // RANGE CHECK + isConnected() !
-    uint8_t  getAddress() const          { return _address; };
-    uint8_t  detectAddress() { todo };  // works with only one on the bus?
-    */
+    void setTemperatureOffset(float offset = 0) { _ms5611.setTemperatureOffset(offset); };
 
-    //       EXPERIMENTAL
-    uint16_t getManufacturer();
-    uint16_t getSerialCode();
-    void list();
+    void setCompensation(bool flag = true) { _ms5611.setCompensation(flag); };
 
-protected:
-    int command(const uint8_t command);
-    uint16_t readProm(uint8_t reg);
-    uint32_t readADC();
-    void convert(const uint8_t addr, osr_t overSamplingRate);
-    void initConstants(uint8_t mathMode);
+    int getLastResult() const { return _ms5611.getLastResult(); };
 
-    uint8_t _address;
-    osr_t _overSamplingRate;
-    float _temperature;
-    float _pressure;
-    float _pressureOffset;
-    float _temperatureOffset;
-    float _height;
-    int _result;
-    uint16_t C[8];
-    double C_multi[8];
-    uint32_t D1;
-    uint32_t D2;
-    int32_t dT;
-    int32_t TEMP;
-    int64_t OFF;
-    int64_t SENS;
-    int32_t P;
-    uint32_t _lastRead;
-    uint32_t _deviceID;
-    bool _compensation;
+    uint32_t getDeviceID() const { return _ms5611.getDeviceID(); };
 
-    TwoWire *_wire;
+    uint32_t lastRead() const { return _ms5611.lastRead(); };
+
+    void list() { _ms5611.list(); };
+
+private:
+    MS5611_Base& _ms5611;
 };
 
-// -- END OF FILE --
+#endif

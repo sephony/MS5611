@@ -1,4 +1,5 @@
-#pragma once
+#ifndef MS5611_IIC_H
+#define MS5611_IIC_H
 
 #include "Arduino.h"
 #include "MS5611_Base.h"
@@ -21,20 +22,16 @@ public:
     bool begin();
     bool isConnected();
 
-    bool reset();
-
-protected:
+private:
     int command(const uint8_t command) override;
     uint16_t readProm(uint8_t reg) override;
     uint32_t readADC() override;
 
     uint8_t _address;
-
-    TwoWire *_wire;
-
-private:
     uint8_t _sda;
     uint8_t _scl;
+
+    TwoWire *_wire;
 };
 
-// -- END OF FILE --
+#endif  // MS5611_IIC_H

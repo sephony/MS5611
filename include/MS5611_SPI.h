@@ -1,10 +1,5 @@
-#pragma once
-//
-//    FILE: MS5611.cpp
-//  AUTHOR: Qiao Dong
-// VERSION: 0.0.1
-// PURPOSE: MS5611 (SPI) Temperature & Pressure library for ESP32 with Arduino framework
-//     URL: https://github.com/QiaoDong1216/MS5611
+#ifndef MS5611_SPI_H
+#define MS5611_SPI_H
 
 #include "Arduino.h"
 #include "MS5611_Base.h"
@@ -48,4 +43,5 @@ private:
     SPISettings _spi_settings;
     bool _useHSPI = false;
 };
-// -- END OF FILE --
+
+#endif  // MS5611_SPI_H

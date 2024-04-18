@@ -1,8 +1,7 @@
 #ifndef MS5611_BASE_H
 #define MS5611_BASE_H
 
-#include "MS5611_IIC.h"
-#include "MS5611_SPI.h"
+#include "Arduino.h"
 
 #define MS5611_READ_OK 0
 #define MS5611_ERROR_2 2  //  low level I2C error
@@ -95,21 +94,20 @@ protected:
     int64_t SENS;
     int32_t P;
 
+    bool _compensation = true;
+
+private:
+    osr_t _overSamplingRate = OSR_STANDARD;
     float _temperature = MS5611_NOT_READ;
     float _pressure = MS5611_NOT_READ;
     float _pressureOffset = 0;
     float _temperatureOffset = 0;
 
-    bool _compensation = true;
+    float _height = MS5611_NOT_READ;
 
     uint32_t _lastRead = MS5611_NOT_READ;
     uint32_t _deviceID = MS5611_NOT_READ;
     int _result;
-
-private:
-    osr_t _overSamplingRate = OSR_STANDARD;
-
-    float _height = MS5611_NOT_READ;
 };
 
-#endif
+#endif  // MS5611_BASE_H

@@ -2,6 +2,8 @@
 #define MS5611_H
 
 #include "MS5611_Base.h"
+#include "MS5611_IIC.h"
+#include "MS5611_SPI.h"
 
 //  BREAKOUT  MS5611  aka  GY63 - see datasheet
 //
@@ -56,47 +58,48 @@
 class MS5611 {
 public:
     MS5611(MS5611_Base& ms5611_xxx) : _ms5611(ms5611_xxx) {}
-
+    // 初始化传感器
     bool begin() { return _ms5611.begin(); };
+    // 检查传感器是否成功连接
     bool isConnected() { return _ms5611.isConnected(); };
-
+    // 复位传感器
     bool reset() { return _ms5611.reset(); };
-
+    // 读取传感器数据
     int read(osr_t oversamplingRate) { return _ms5611.read(oversamplingRate); };
     inline int read() { return _ms5611.read(); };
-
+    // 获得当前采样率
     osr_t getOversampling() const { return _ms5611.getOversampling(); };
-
+    // 获得当前温度
     float getTemperature() const { return _ms5611.getTemperature(); };
-
+    // 获得当前气压
     float getPressure() const { return _ms5611.getPressure(); };
-
+    // 获得当前高度
     float getHeight(h_mode mode = ONLY_PRESSURE) const { return _ms5611.getHeight(mode); };
-
+    // 获得当前温度偏移
     float getTemperatureOffset() { return _ms5611.getTemperatureOffset(); };
-
+    // 获得当前气压偏移
     float getPressureOffset() { return _ms5611.getPressureOffset(); };
-
+    // 获得当前补偿状态（是否开启）
     bool getCompensation() { return _ms5611.getCompensation(); };
-
+    // 设置采样率
     void setOversampling(osr_t overSamplingRate) { _ms5611.setOversampling(overSamplingRate); };
-
+    // 设置气压偏移
     void setPressureOffset(float offset = 0) { _ms5611.setPressureOffset(offset); };
-
+    // 设置温度偏移
     void setTemperatureOffset(float offset = 0) { _ms5611.setTemperatureOffset(offset); };
-
+    // 设置补偿状态
     void setCompensation(bool flag = true) { _ms5611.setCompensation(flag); };
-
+    // 获得上一次读取的字节
     int getLastResult() const { return _ms5611.getLastResult(); };
-
+    // 获得设备ID
     uint32_t getDeviceID() const { return _ms5611.getDeviceID(); };
-
+    // 获得最后一次读取的时间
     uint32_t lastRead() const { return _ms5611.lastRead(); };
-
+    // 列出全部解算信息
     void list() { _ms5611.list(); };
 
 private:
     MS5611_Base& _ms5611;
 };
 
-#endif
+#endif  // MS5611_H

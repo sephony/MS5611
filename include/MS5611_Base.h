@@ -96,6 +96,8 @@ protected:
 
     bool _compensation = true;
 
+    int _result = 0;  // 在IIC通信中，返回0表示成功；SPI通信中，该变量一直为0，无意义
+
 private:
     osr_t _overSamplingRate = OSR_STANDARD;
     float _temperature = MS5611_NOT_READ;
@@ -107,7 +109,6 @@ private:
 
     uint32_t _lastRead = MS5611_NOT_READ;
     uint32_t _deviceID = MS5611_NOT_READ;
-    int _result;
 };
 
 #endif  // MS5611_BASE_H

@@ -34,7 +34,13 @@ bool MS5611_IIC::isConnected() {
 //
 //  PRIVATE
 //
-
+int MS5611_IIC::command(const uint8_t command) {
+    yield();
+    _wire->beginTransmission(_address);
+    _wire->write(command);
+    _result = _wire->endTransmission();
+    return _result;
+}
 uint16_t MS5611_IIC::readProm(uint8_t reg) {
     //  last EEPROM register is CRC - Page 13 datasheet.
     uint8_t promCRCRegister = 7;
@@ -69,14 +75,6 @@ uint32_t MS5611_IIC::readADC() {
         return 0UL;
     }
     return 0UL;
-}
-
-int MS5611_IIC::command(const uint8_t command) {
-    yield();
-    _wire->beginTransmission(_address);
-    _wire->write(command);
-    _result = _wire->endTransmission();
-    return _result;
 }
 
 // -- END OF FILE --

@@ -73,6 +73,20 @@ bool MS5611_SPI::end() {
 }
 
 /*********************************PRIVATE**************************************/
+int MS5611_SPI::command(const uint8_t command) {
+    yield();
+    digitalWrite(_ss, LOW);
+    if (_hwSPI) {
+        mySPI->beginTransaction(_spi_settings);
+        mySPI->transfer(command);
+        mySPI->endTransaction();
+    } else  //  Software SPI
+    {
+        swSPI_transfer(command);
+    }
+    digitalWrite(_ss, HIGH);
+    return 0;
+}
 
 uint16_t MS5611_SPI::readProm(uint8_t reg) {
     //  last EEPROM register is CRC - Page 13 datasheet.
@@ -126,21 +140,6 @@ uint32_t MS5611_SPI::readADC() {
     digitalWrite(_ss, HIGH);
     //  Serial.println(value, HEX);
     return value;
-}
-
-int MS5611_SPI::command(const uint8_t command) {
-    yield();
-    digitalWrite(_ss, LOW);
-    if (_hwSPI) {
-        mySPI->beginTransaction(_spi_settings);
-        mySPI->transfer(command);
-        mySPI->endTransaction();
-    } else  //  Software SPI
-    {
-        swSPI_transfer(command);
-    }
-    digitalWrite(_ss, HIGH);
-    return 0;
 }
 
 //  simple one mode version

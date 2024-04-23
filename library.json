@@ -1,6 +1,6 @@
 {
   "name": "MS5611",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MS5611 for HIT Rocket team",
   "keywords": "MS5611, CADC, CAUDC, HIT",
   "repository": {

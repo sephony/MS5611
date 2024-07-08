@@ -53,12 +53,11 @@ int MS5611_Base::read(osr_t overSamplingRate) {
     //  uint32_t D2 = 8569150;
 
     //  TEMP & PRESS MATH - PAGE 7/20
-    // 移位计算（一些编译器（如 GCC 和 Clang）会进行算术右移，这意味着它们会保留符号位）
-    dT = D2 - (C[5] << 8);
-    TEMP = 2000 + (((int64_t)dT * C[6]) >> 23);
+    dT = D2 - C[5] * 256;
+    TEMP = 2000 + (int64_t)dT * C[6] / 8388608;
 
-    OFF = ((int64_t)C[2] << 16) + (((int64_t)dT * C[4]) >> 7);
-    SENS = ((int64_t)C[1] << 15) + (((int64_t)dT * C[3]) >> 8);
+    OFF = (int64_t)C[2] * 65536 + dT * (int64_t)C[4] / 128;
+    SENS = (int64_t)C[1] * 32768 + dT * (int64_t)C[3] / 256;
 
     if (_compensation) {
         //  second order tempreture compensation - PAGE 8/20
@@ -66,24 +65,24 @@ int MS5611_Base::read(osr_t overSamplingRate) {
         //  NOTE TEMPERATURE IS IN 0.01 C
         if (TEMP < 2000) {
             int32_t aux = (2000 - TEMP) * (2000 - TEMP);
-            int32_t T2 = ((int64_t)dT * dT) >> 31;
-            int64_t OFF2 = (5 * aux) >> 1;
-            int64_t SENS2 = (5 * aux) >> 2;
-
+            int32_t T2 = (int64_t)dT * dT / 2147483647;
+            int64_t OFF2 = (5 * aux) / 2;
+            int64_t SENS2 = (5 * aux) / 2;
             //  COMMENT OUT < -1500 CORRECTION IF NOT NEEDED
             if (TEMP < -1500) {
                 aux = (TEMP + 1500) * (TEMP + 1500);
                 OFF2 += 7 * aux;
-                SENS2 += (7 * aux) >> 1;
+                SENS2 += (11 * aux) / 2;
             }
             TEMP -= T2;
             OFF -= OFF2;
             SENS -= SENS2;
+            // Serial.println("TEMP < 2000");
         }
         //  END SECOND ORDER COMPENSATION
     }
 
-    P = ((D1 * SENS) >> 21 - OFF) >> 15;
+    P = (int32_t)((D1 * SENS / 2097152 - OFF) / 32768);
 
     _temperature = (float)TEMP * 0.01 + _temperatureOffset;
     _pressure = (float)P * 0.01 + _pressureOffset;
@@ -114,8 +113,8 @@ void MS5611_Base::list() {
     Serial.printf("D2: %lu\n", D2);
     Serial.printf("dT: %ld\n", dT);
     Serial.printf("TEMP: %ld\n", TEMP);
-    Serial.printf("OFF: %ld\n", OFF);
-    Serial.printf("SENS: %ld\n", SENS);
+    Serial.printf("OFF: %lld\n", OFF);
+    Serial.printf("SENS: %lld\n", SENS);
     Serial.printf("P: %ld\n", P);
     Serial.printf("Temperature: %.2f\n", _temperature);
     Serial.printf("Pressure: %.2f\n", _pressure);

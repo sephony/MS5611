@@ -16,6 +16,7 @@
       "maintainer": true
     }
   ],
+  "license": "MIT",
   "homepage": "https://github.com/sephony/MS5611",
   "frameworks": "arduino",
   "platforms": "*"

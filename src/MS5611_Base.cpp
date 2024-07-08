@@ -67,7 +67,7 @@ int MS5611_Base::read(osr_t overSamplingRate) {
             int32_t aux = (2000 - TEMP) * (2000 - TEMP);
             int32_t T2 = (int64_t)dT * dT / 2147483647;
             int64_t OFF2 = (5 * aux) / 2;
-            int64_t SENS2 = (5 * aux) / 2;
+            int64_t SENS2 = (5 * aux) / 4;
             //  COMMENT OUT < -1500 CORRECTION IF NOT NEEDED
             if (TEMP < -1500) {
                 aux = (TEMP + 1500) * (TEMP + 1500);

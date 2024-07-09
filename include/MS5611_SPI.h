@@ -7,7 +7,7 @@
 
 class MS5611_SPI : public MS5611_Base {
 public:
-    MS5611_SPI(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t ss)
+    explicit MS5611_SPI(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t ss)
         : _sck(sck), _miso(miso), _mosi(mosi), _ss(ss), _hwSPI(true), _SPIspeed(1000000), _spi_settings(1000000, MSBFIRST, SPI_MODE0) {}
 
     MS5611_SPI(int8_t ss) : MS5611_SPI(255, 255, 255, ss) {}

@@ -31,9 +31,6 @@ bool MS5611_Base::reset() {
 }
 
 int MS5611_Base::read(osr_t overSamplingRate) {
-    //  VARIABLES NAMES BASED ON DATASHEET
-    //  ALL MAGIC NUMBERS ARE FROM DATASHEET
-
     convert(MS5611_CMD_CONVERT_D1, overSamplingRate);
     if (_result) return _result;
     //  NOTE: D1 and D2 seem reserved in MBED (NANO BLE)
@@ -45,15 +42,12 @@ int MS5611_Base::read(osr_t overSamplingRate) {
     D2 = readADC();
     if (_result) return _result;
 
-    // Serial.println(D1);
-    // Serial.println(D2);
-
     //  TEST VALUES - comment lines above
     //  uint32_t D1 = 9085466;
     //  uint32_t D2 = 8569150;
 
     //  TEMP & PRESS MATH - PAGE 7/20
-    dT = D2 - C[5] * 256;
+    dT = D2 - (((uint32_t)C[5]) << 8);
     TEMP = 2000 + (int64_t)dT * C[6] / 8388608;
 
     OFF = (int64_t)C[2] * 65536 + dT * (int64_t)C[4] / 128;
@@ -84,14 +78,14 @@ int MS5611_Base::read(osr_t overSamplingRate) {
 
     P = (int32_t)((D1 * SENS / 2097152 - OFF) / 32768);
 
-    _temperature = (float)TEMP * 0.01 + _temperatureOffset;
-    _pressure = (float)P * 0.01 + _pressureOffset;
+    _temperature = (double)TEMP * 0.01 + _temperatureOffset;
+    _pressure = (double)P * 0.01 + _pressureOffset;
 
     _lastRead = millis();
     return MS5611_READ_OK;
 }
 
-float MS5611_Base::getHeight(h_mode mode) {
+double MS5611_Base::getHeight(h_mode mode) {
     switch (mode) {
     case ONLY_PRESSURE:
         _height = 44330.0 * (1.0 - pow(_pressure / 1013.25, 1 / 5.255));  // barometric
@@ -106,24 +100,41 @@ float MS5611_Base::getHeight(h_mode mode) {
     return _height;
 }
 
-float MS5611_Base::getInitHeight() {
+void MS5611_Base::init(h_mode mode) {
     for (int i = 0; i < 100; i++) {
         read();
+        _T0 += _temperature;
+        _P0 += _pressure;
+        _H0 += getHeight(mode);
         Serial.print("Temperature: ");
-        Serial.print(getTemperature(), 2);
+        Serial.print(_temperature, 2);
         Serial.print(" C, Pressure: ");
-        Serial.print(getPressure(), 2);
+        Serial.print(_pressure, 2);
         Serial.println(" mBar");
-        _H0 += getHeight();
         delay(30);  // 经验数字，保证气压采集正确
     }
+    _T0 /= 100;
+    _P0 /= 100;
     _H0 /= 100;
-    return _H0;
+    Serial.printf("T0: %.2f C, P0: %.2f mBar, H0: %.2f m\n", _T0, _P0, _H0);
 }
 
-float MS5611_Base::getRelativeHeight(h_mode mode) {
-    float relative_height = getHeight(mode) - _H0;
-    _height_filter = AltitudeLPF_50.Butterworth50HzLPF(relative_height);
+double MS5611_Base::getInit(const std::string& data) {
+    if (data == "T0")
+        return _T0;
+    else if (data == "P0")
+        return _P0;
+    else if (data == "H0")
+        return _H0;
+    else {
+        Serial.println("getInit() - unknown data(the data must be one of T0, P0, H0)");
+        return -1;
+    }
+}
+
+double MS5611_Base::getRelativeHeight(h_mode mode) {
+    double relative_height = getHeight(mode) - _H0;
+    _height_filter = H_filter.Butterworth50HzLPF(relative_height);
     return _height_filter;
 }
 
@@ -146,7 +157,7 @@ void MS5611_Base::list() {
 
 // protected
 void MS5611_Base::convert(const uint8_t addr, osr_t overSamplingRate) {
-    //  values from page 3 datasheet - MAX column (rounded up)
+    // ADC转换时间与过采样率的关系
     uint16_t delay[5] = {600, 1200, 2300, 4600, 9100};
 
     uint8_t index = 0;
@@ -172,6 +183,7 @@ void MS5611_Base::convert(const uint8_t addr, osr_t overSamplingRate) {
     uint8_t offset = index * 2;
     command(addr + offset);
 
+    // 等待ADC转换完成
     uint16_t waitTime = delay[index];
     uint32_t start = micros();
     //  while loop prevents blocking RTOS
@@ -179,4 +191,19 @@ void MS5611_Base::convert(const uint8_t addr, osr_t overSamplingRate) {
         yield();
         delayMicroseconds(10);
     }
+}
+
+void MS5611_Base::debug() {
+    auto start_ms5611 = millis();
+    read();
+    auto stop_ms5611 = millis();
+    Serial.print("Temperature: ");
+    Serial.print(_temperature, 2);
+    Serial.print(" C, Pressure: ");
+    Serial.print(_pressure, 2);
+    Serial.print(" mBar, Height: ");
+    Serial.print(getRelativeHeight(), 2);
+    Serial.print(" m,\t Duration: ");
+    Serial.print(stop_ms5611 - start_ms5611);
+    Serial.println(" ms");
 }

@@ -1,3 +1,35 @@
+/*
+ * @author      sephony
+ * @date        2024-07-09
+ * @version     1.2.0
+ * @brief       MS5611气压传感器驱动库
+ * @details     本库基于MS5611传感器，实现了IIC和SPI两种通信方式的驱动库。
+ *------------------------------------------------------------------------------
+ * MS5611-01BA数据手册:
+ *
+ * MODE         SPI    I2C    pin     MS5611
+ *                                  +--------+
+ *              VCC    VCC    VCC---| o      |
+ *              GND    GND    GND---| o      |
+ *              SCK    SCL    SCL---| o      |
+ *             MOSI    SDA    SDA---| o      |
+ *               CS    CSB    CSB---| o      |
+ *             MISO           SDO---| o L    |   L = led
+ *              LOW   HIGH     PS---| o      |   PS = protocol select
+ *                                  +--------+
+ *
+ *          IIC模式下:
+ *              PS to VCC  ==>  I2C  (别忘了IIC总线的上拉电阻)
+ *              CSB to VCC  ==>  0x76 (0b1110110)
+ *              CSB to GND  ==>  0x77 (0b1110111)
+ *              SDO可悬空
+ *
+ *          SPI模式下:
+ *              PS to GND  ==>  SPI
+ *
+ * @note SPI模式下传感器会有积热现象
+ * -----------------------------------------------------------------------------
+ */
 #ifndef MS5611_H
 #define MS5611_H
 
@@ -5,102 +37,183 @@
 #include <MS5611_IIC.h>
 #include <MS5611_SPI.h>
 
-//  BREAKOUT  MS5611  aka  GY63 - see datasheet
-//
-//  SPI    I2C
-//              +--------+
-//  VCC    VCC  | o      |
-//  GND    GND  | o      |
-//         SCL  | o      |
-//  SDI    SDA  | o      |
-//  CSO         | o      |
-//  SDO         | o L    |   L = led
-//          PS  | o    O |   O = opening  PS = protocol select
-//              +--------+
-//
-//  PS to VCC  ==>  I2C  (GY-63 board has internal pull up, so not needed)
-//  PS to GND  ==>  SPI
-//  CS to VCC  ==>  0x76 (0b1110110)
-//  CS to GND  ==>  0x77 (0b1110111)
-
-/*
- ******************************************************************************
- *	从PROM读取工厂的出厂数据
- *	C0	为0正常，为1说明IIC通信有问题或者硬件复位后延时不够
- *	C1  压力敏感度 SENS_T1				uint16_t
- *	C2  压力补偿  OFF_T1				uint16_t
- *	C3	温度压力灵敏度系数 TCS          uint16_t
- *	C4	温度系数的压力补偿 TCO          uint16_t
- *	C5	参考温度 T_REF                  uint16_t
- *	C6 	温度系数 TEMPSENS				uint16_t
- *	C7	CRC校验
- ******************************************************************************
- *	读取数字压力和温度数据
- *
- *	D1	数字压力值						uint32_t
- *	D2	数字温度值						uint32_t
- ******************************************************************************
- *	计算温度
- *
- *	dT		实际温度与参考温度之差	dT=D2-C5*2^8			int32_t
- *	TEMP	实际温度				TEMP=2000+dT*C6/2^23	int32_t	2007(20.07℃)
- ******************************************************************************
- *	计算温度补偿压力
- *
- *	OFF		实际温度补偿		OFF=C2*2^16+(C4*dT)/2^7		int64_t
- *	SENS	实际温度下的灵敏度	SENS=C1*2^15+(C3*dT)/2^8	int64_t
- *	P		温度补偿压力		P=(D1*SENS/2^21-OFF)/2^15	int32_t	100009(1000.09mbar=100kPa)
- ******************************************************************************
- */
-
 #define MS5611_LIB_VERSION (F("0.0.1-alpha"))
 
 class MS5611 {
 public:
     MS5611(MS5611_Base& ms5611_xxx) : _ms5611(ms5611_xxx) {}
-    // 初始化传感器
+
+    /*
+     * @brief 初始化传感器
+     * @return true: 初始化成功; false: 初始化失败
+     */
     bool begin() { return _ms5611.begin(); };
-    // 检查传感器是否成功连接
+
+    /*
+     * @brief 检查传感器是否成功连接
+     * @return true: 连接成功; false: 连接失败
+     */
     bool isConnected() { return _ms5611.isConnected(); };
-    // 复位传感器
+
+    /*
+     * @brief 重置MS5611传感器，并读取出厂PROM数据。
+     *
+     * @details 这个函数发送一个复位序列给MS5611传感器，以确保在上电后校准PROM正确加载到内部寄存器。
+     *       它也可以在传感器处于未知状态时用来重置设备。
+     *
+     * @note 在读取PROM数据之前必须reset芯片，
+     *       reset芯片后，需要要延时一段时间才能读取出厂校准值（函数内部已添加延时）。
+     *
+     * @return 如果复位成功返回true，否则返回false。
+     */
     bool reset() { return _ms5611.reset(); };
-    // 读取传感器数据
+
+    /*
+     * @brief 读取传感器数据
+     *
+     * @param oversamplingRate 采样率
+     *
+     * @return 0: 成功
+     *         1: 数据太长超过发送缓存区
+     *         2: 在传输地址时没有收到应答（NACK）
+     *         3: 在传输数据时没有收到应答（NACK）
+     *         4: 其他错误
+     *         5: 超时
+     *
+     * @note 只有在IIC通信时才可能返回错误码，SPI通信时不会返回错误码。
+     *
+     * @details 若出现错误（返回非0值），由IIC通信函数endTransmission()实际报告:
+     *          参见https://www.arduino.cc/reference/en/language/functions/communication/wire/endtransmission/
+     */
     int read(osr_t oversamplingRate) { return _ms5611.read(oversamplingRate); };
+
     inline int read() { return _ms5611.read(); };
-    // 获得当前采样率
+
+    /*
+     * @brief 获得当前采样率
+     * @return 256:OSR_ULTRA_LOW; 512:OSR_LOW; 1024:OSR_STANDARD; 2048:OSR_HIGH; 4096:OSR_ULTRA_HIGH
+     */
     osr_t getOversampling() const { return _ms5611.getOversampling(); };
-    // 获得当前温度
-    float getTemperature() const { return _ms5611.getTemperature(); };
-    // 获得当前气压
-    float getPressure() const { return _ms5611.getPressure(); };
-    // 获得当前高度
-    float getHeight(h_mode mode = ONLY_PRESSURE) { return _ms5611.getHeight(mode); };
-    // 获得初始高度
-    float getInitHeight() { return _ms5611.getInitHeight(); };
-    // 获得相对高度(滤波后)
-    float getRelativeHeight(h_mode mode = ONLY_PRESSURE) { return _ms5611.getRelativeHeight(mode); };
-    // 获得当前温度偏移
-    float getTemperatureOffset() { return _ms5611.getTemperatureOffset(); };
-    // 获得当前气压偏移
-    float getPressureOffset() { return _ms5611.getPressureOffset(); };
-    // 获得当前补偿状态（是否开启）
+
+    /*
+     * @brief 获得当前温度
+     * @return 温度（℃）
+     */
+    double getTemperature() const { return _ms5611.getTemperature(); };
+
+    /*
+     * @brief 获得当前气压
+     * @return 气压（kPa）
+     */
+    double getPressure() const { return _ms5611.getPressure(); };
+
+    /*
+     * @brief 获得当前海拔高度
+     * @param mode 高度计算模式
+     * @return 高度（m）
+     * @note 默认为仅使用气压计算高度(`ONLY_PRESSURE`)，若需要使用气压温度混合计算高度，请设置`mode`为`MIXED`
+     */
+    double getHeight(h_mode mode = ONLY_PRESSURE) { return _ms5611.getHeight(mode); };
+
+    /*
+     * @brief 计算初始平均温度、气压与海拔高度
+     * @param mode 高度计算模式
+     * @note 默认为仅使用气压计算高度(`ONLY_PRESSURE`)，若需要使用气压温度混合计算高度，请设置`mode`为`MIXED`
+     */
+    void init(h_mode mode = ONLY_PRESSURE) { return _ms5611.init(mode); };
+
+    /*
+     * @brief 获得初始平均温度、气压与海拔高度
+     * @param data 数据类型（`T0`: 初始温度; `P0`: 初始气压; `H0`: 初始海拔高度）
+     * @return 初始值
+     */
+    double getInit(const std::string& data) { return _ms5611.getInit(data); }
+
+    /*
+     * @brief 获得相对海拔高度（滤波后）
+     * @param mode 高度计算模式
+     * @return 高度（m）
+     * @note 默认为仅使用气压计算高度(`ONLY_PRESSURE`)，若需要使用气压温度混合计算高度，请设置`mode`为`MIXED`
+     */
+    double getRelativeHeight(h_mode mode = ONLY_PRESSURE) { return _ms5611.getRelativeHeight(mode); };
+
+    /*
+     * @brief 获得当前温度偏移
+     * @return 温度偏移（℃）
+     */
+    double getTemperatureOffset() { return _ms5611.getTemperatureOffset(); };
+
+    /*
+     * @brief 获得当前气压偏移
+     * @return 气压偏移（kPa）
+     */
+    double getPressureOffset() { return _ms5611.getPressureOffset(); };
+
+    /*
+     * @brief 获得当前补偿状态（是否开启）
+     * @return 0: 未开启; 1: 开启
+     */
     bool getCompensation() { return _ms5611.getCompensation(); };
-    // 设置采样率
+
+    /*
+     * @brief 设置采样率
+     * @param overSamplingRate 采样率
+     * @note 可选参数
+     *       `OSR_ULTRA_LOW`; `OSR_LOW`; `OSR_STANDARD`; `OSR_HIGH`; `OSR_ULTRA_HIGH`
+     */
     void setOversampling(osr_t overSamplingRate) { _ms5611.setOversampling(overSamplingRate); };
-    // 设置气压偏移
-    void setPressureOffset(float offset = 0) { _ms5611.setPressureOffset(offset); };
-    // 设置温度偏移
-    void setTemperatureOffset(float offset = 0) { _ms5611.setTemperatureOffset(offset); };
-    // 设置补偿状态
+
+    /*
+     * @brief 设置温度偏移
+     * @param 温度偏移（℃）
+     */
+    void setTemperatureOffset(double offset = 0) { _ms5611.setTemperatureOffset(offset); };
+
+    /*
+     * @brief 设置气压偏移
+     * @param 气压偏移（kPa）
+     */
+    void setPressureOffset(double offset = 0) { _ms5611.setPressureOffset(offset); };
+
+    /*
+     * @brief 设置补偿状态(默认开启)
+     * @param flag true: 开启; false: 关闭
+     */
     void setCompensation(bool flag = true) { _ms5611.setCompensation(flag); };
-    // 获得上一次读取的字节
+
+    /*
+     * @brief 获得上一次读取的结果（仅IIC通信时返回有效值）
+     * @return 0: 成功
+     *         1: 数据太长超过发送缓存区
+     *         2: 在传输地址时没有收到应答（NACK）
+     *         3: 在传输数据时没有收到应答（NACK）
+     *         4: 其他错误
+     *         5: 超时
+     */
     int getLastResult() const { return _ms5611.getLastResult(); };
-    // 获得设备ID
+
+    /*
+     * @brief 获取设备ID
+     * @return 设备ID
+     * @details _deviceID is a SHIFT XOR merge of 7 PROM registers, reasonable unique
+     */
     uint32_t getDeviceID() const { return _ms5611.getDeviceID(); };
-    // 获得最后一次读取的时间
+
+    /*
+     * @brief 获得最后一次读取的时间
+     * @return 时间（ms）
+     */
     uint32_t lastRead() const { return _ms5611.lastRead(); };
-    // 列出全部解算信息
+
+    /*
+     * @brief 列出传感器出厂校准值（C0~C7）及读取的ADC转换值(D1、D2)
+     */
     void list() { _ms5611.list(); };
+
+    /*
+     * @brief 列出传感器出厂校准值（C0~C7）及读取的ADC转换值(D1、D2)
+     */
+    void debug() { _ms5611.debug(); };
 
 private:
     MS5611_Base& _ms5611;

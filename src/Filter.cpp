@@ -16,7 +16,7 @@
 
 在你的代码中，`AltitudeLPF_50.input = height;`这行代码将高度值作为滤波器的输入，然后`height_filter = Butterworth50HzLPF(&AltitudeLPF_50);`这行代码调用滤波器函数，得到滤波后的高度值。这样，高度值中的高频噪声就被消除了。
 */
-float Filter::Butterworth50HzLPF(float data) {
+double Filter::Butterworth50HzLPF(double data) {
     xv[0] = xv[1];
     xv[1] = xv[2];
     xv[2] = xv[3];

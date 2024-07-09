@@ -6,12 +6,12 @@
 class Filter {
 public:
     Filter() = default;
-    float Butterworth50HzLPF(float data);
+    double Butterworth50HzLPF(double data);
 
 private:
-    float xv[4] = {0, 0, 0, 0};
-    float yv[4] = {0, 0, 0, 0};
-    float output = 0;
+    double xv[4] = {0, 0, 0, 0};
+    double yv[4] = {0, 0, 0, 0};
+    double output = 0;
 };
 
 #endif /* FILTER_H_ */

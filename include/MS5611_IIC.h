@@ -15,7 +15,6 @@
 
 class MS5611_IIC : public MS5611_Base {
 public:
-    // constructor
     explicit MS5611_IIC(uint8_t sda, uint8_t scl, uint8_t deviceAddress = MS5611_IIC_ADDR, TwoWire *wire = &Wire)
         : _sda(sda), _scl(scl), _address(deviceAddress), _wire(wire){};
 
@@ -27,11 +26,11 @@ private:
     uint16_t readProm(uint8_t reg) override;
     uint32_t readADC() override;
 
-    uint8_t _address;
-    uint8_t _sda;
-    uint8_t _scl;
+    uint8_t _address;  // 设备地址
+    uint8_t _sda;      // SDA引脚
+    uint8_t _scl;      // SCL引脚
 
-    TwoWire *_wire;
+    TwoWire *_wire;  // IIC总线
 };
 
 #endif  // MS5611_IIC_H

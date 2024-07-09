@@ -1,9 +1,9 @@
 #ifndef MS5611_SPI_H
 #define MS5611_SPI_H
 
-#include "Arduino.h"
-#include "MS5611_Base.h"
-#include "SPI.h"
+#include <Arduino.h>
+#include <MS5611_Base.h>
+#include <SPI.h>
 
 class MS5611_SPI : public MS5611_Base {
 public:

@@ -7,7 +7,7 @@
 //
 //  HISTORY: see changelog.md
 
-#include "MS5611_SPI.h"
+#include <MS5611_SPI.h>
 
 /*********************************PRIVATE**************************************/
 

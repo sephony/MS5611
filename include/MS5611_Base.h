@@ -1,7 +1,8 @@
 #ifndef MS5611_BASE_H
 #define MS5611_BASE_H
 
-#include "Arduino.h"
+#include <Arduino.h>
+#include <Filter.h>
 
 #define MS5611_READ_OK 0
 #define MS5611_ERROR_2 2  //  low level I2C error
@@ -23,8 +24,8 @@ enum osr_t : int {
 };
 
 enum h_mode : int {
-    ONLY_PRESSURE = 0,
-    MIXED = 1
+    ONLY_PRESSURE = 0,  // 仅气压计算高度
+    MIXED = 1,          // 气压温度混合计算高度
 };
 
 class MS5611_Base {
@@ -51,7 +52,9 @@ public:
     //  pressure is in mBar
     float getPressure() const { return _pressure; };
 
-    float getHeight(h_mode mode = ONLY_PRESSURE) const;
+    float getHeight(h_mode mode = ONLY_PRESSURE);
+    float getInitHeight();
+    float getRelativeHeight(h_mode mode = ONLY_PRESSURE);
 
     float getTemperatureOffset() { return _temperatureOffset; };
     float getPressureOffset() { return _pressureOffset; };
@@ -99,13 +102,16 @@ protected:
     int _result = 0;  // 在IIC通信中，返回0表示成功；SPI通信中，该变量一直为0，无意义
 
 private:
-    osr_t _overSamplingRate = OSR_STANDARD;
-    float _temperature = MS5611_NOT_READ;
-    float _pressure = MS5611_NOT_READ;
-    float _pressureOffset = 0;
-    float _temperatureOffset = 0;
+    osr_t _overSamplingRate = OSR_STANDARD;  // 采样率
+    float _temperature = MS5611_NOT_READ;    // 温度
+    float _pressure = MS5611_NOT_READ;       // 气压
+    float _pressureOffset = 0;               // 气压偏移
+    float _temperatureOffset = 0;            // 温度偏移
 
-    float _height = MS5611_NOT_READ;
+    float _height = MS5611_NOT_READ;         // 海拔高度
+    float _H0 = 0;                           // 初始海拔高度
+    float _height_filter = MS5611_NOT_READ;  // 滤波后的相对高度
+    Filter AltitudeLPF_50;                   // 50Hz Butterworth LPF
 
     uint32_t _lastRead = MS5611_NOT_READ;
     uint32_t _deviceID = MS5611_NOT_READ;

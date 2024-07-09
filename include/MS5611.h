@@ -1,9 +1,9 @@
 #ifndef MS5611_H
 #define MS5611_H
 
-#include "MS5611_Base.h"
-#include "MS5611_IIC.h"
-#include "MS5611_SPI.h"
+#include <MS5611_Base.h>
+#include <MS5611_IIC.h>
+#include <MS5611_SPI.h>
 
 //  BREAKOUT  MS5611  aka  GY63 - see datasheet
 //
@@ -74,7 +74,11 @@ public:
     // 获得当前气压
     float getPressure() const { return _ms5611.getPressure(); };
     // 获得当前高度
-    float getHeight(h_mode mode = ONLY_PRESSURE) const { return _ms5611.getHeight(mode); };
+    float getHeight(h_mode mode = ONLY_PRESSURE) { return _ms5611.getHeight(mode); };
+    // 获得初始高度
+    float getInitHeight() { return _ms5611.getInitHeight(); };
+    // 获得相对高度(滤波后)
+    float getRelativeHeight(h_mode mode = ONLY_PRESSURE) { return _ms5611.getRelativeHeight(mode); };
     // 获得当前温度偏移
     float getTemperatureOffset() { return _ms5611.getTemperatureOffset(); };
     // 获得当前气压偏移

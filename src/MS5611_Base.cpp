@@ -1,4 +1,4 @@
-#include "MS5611_Base.h"
+#include <MS5611_Base.h>
 
 bool MS5611_Base::reset() {
     command(MS5611_CMD_RESET);
@@ -91,16 +91,40 @@ int MS5611_Base::read(osr_t overSamplingRate) {
     return MS5611_READ_OK;
 }
 
-float MS5611_Base::getHeight(h_mode mode) const {
+float MS5611_Base::getHeight(h_mode mode) {
     switch (mode) {
     case ONLY_PRESSURE:
-        return 44330.0 * (1.0 - pow(_pressure / 1013.25, 1 / 5.255));  // barometric
+        _height = 44330.0 * (1.0 - pow(_pressure / 1013.25, 1 / 5.255));  // barometric
+        break;
     case MIXED:
-        return (pow((1013.25 / _pressure), 1.0 / 5.257) - 1) * (_temperature + 273.15) / 0.65;  // hypsometric
+        _height = (pow((1013.25 / _pressure), 1.0 / 5.257) - 1) * (_temperature + 273.15) / 0.65;  // hypsometric
+        break;
     default:
-        Serial.println("getHeight() - unknown mode(the mode must be ONLY_PRESSURE or MIXED)");
+        Serial.println("getHeight() - unknown mode(the mode must be one of ONLY_PRESSURE, MIXED)");
         return -1;
     }
+    return _height;
+}
+
+float MS5611_Base::getInitHeight() {
+    for (int i = 0; i < 100; i++) {
+        read();
+        Serial.print("Temperature: ");
+        Serial.print(getTemperature(), 2);
+        Serial.print(" C, Pressure: ");
+        Serial.print(getPressure(), 2);
+        Serial.println(" mBar");
+        _H0 += getHeight();
+        delay(30);  // 经验数字，保证气压采集正确
+    }
+    _H0 /= 100;
+    return _H0;
+}
+
+float MS5611_Base::getRelativeHeight(h_mode mode) {
+    float relative_height = getHeight(mode) - _H0;
+    _height_filter = AltitudeLPF_50.Butterworth50HzLPF(relative_height);
+    return _height_filter;
 }
 
 void MS5611_Base::list() {

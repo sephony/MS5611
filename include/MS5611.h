@@ -117,10 +117,16 @@ public:
 
     /*
      * @brief 计算初始平均温度、气压与海拔高度
+     *
+     * @param delay_time 采样间隔时间（ms）
+     * @param n 采样次数
      * @param mode 高度计算模式
+     *
      * @note 默认为仅使用气压计算高度(`ONLY_PRESSURE`)，若需要使用气压温度混合计算高度，请设置`mode`为`MIXED`
+     * @note 采样间隔非常重要，不同的采样间隔会影响最终的平均值！loop程序中实时采样的间隔尽量与此处设置的间隔一致。
+     *       或者添加偏移量，使得采样间隔的误差对最终结果的影响降到最低。
      */
-    void init(h_mode mode = ONLY_PRESSURE) { return _ms5611.init(mode); };
+    void init(uint32_t delay_time = 30, uint8_t n = 100, h_mode mode = ONLY_PRESSURE) { return _ms5611.init(delay_time, n, mode); };
 
     /*
      * @brief 获得初始平均温度、气压与海拔高度

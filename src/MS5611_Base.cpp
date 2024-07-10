@@ -100,8 +100,8 @@ double MS5611_Base::getHeight(h_mode mode) {
     return _height;
 }
 
-void MS5611_Base::init(h_mode mode) {
-    for (int i = 0; i < 100; i++) {
+void MS5611_Base::init(uint32_t delay_time, uint8_t n, h_mode mode) {
+    for (int i = 0; i < n; i++) {
         read();
         _T0 += _temperature;
         _P0 += _pressure;
@@ -111,11 +111,11 @@ void MS5611_Base::init(h_mode mode) {
         Serial.print(" C, Pressure: ");
         Serial.print(_pressure, 2);
         Serial.println(" mBar");
-        delay(30);  // 经验数字，保证气压采集正确
+        delay(delay_time);  // 经验数字，保证气压采集正确
     }
-    _T0 /= 100;
-    _P0 /= 100;
-    _H0 /= 100;
+    _T0 /= n;
+    _P0 /= n;
+    _H0 /= n;
     Serial.printf("T0: %.2f C, P0: %.2f mBar, H0: %.2f m\n", _T0, _P0, _H0);
 }
 

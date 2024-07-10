@@ -138,10 +138,16 @@ public:
 
     /*
      * @brief 计算初始平均温度、气压与海拔高度
+     *
+     * @param delay_time 采样间隔时间（ms）
+     * @param n 采样次数
      * @param mode 高度计算模式
+     *
      * @note 默认为仅使用气压计算高度(`ONLY_PRESSURE`)，若需要使用气压温度混合计算高度，请设置`mode`为`MIXED`
+     * @note 采样间隔非常重要，不同的采样间隔会影响最终的平均值！loop程序中实时采样的间隔尽量与此处设置的间隔一致。
+     *       或者添加偏移量，使得采样间隔的误差对最终结果的影响降到最低。
      */
-    void init(h_mode mode = ONLY_PRESSURE);
+    void init(uint32_t delay_time = 30, uint8_t n = 100, h_mode mode = ONLY_PRESSURE);
 
     /*
      * @brief 获得初始平均温度、气压与海拔高度
@@ -252,17 +258,17 @@ protected:
     int64_t SENS;   // 实际温度下的灵敏度
     int32_t P;      // 温度补偿压力
 
-    bool _compensation = true;  // 补偿状态
-
     int _result = 0;  // 上一次读取的结果（在IIC通信中，返回0表示成功；SPI通信中，该变量一直为0，无意义）
 
 private:
     osr_t _overSamplingRate = OSR_STANDARD;  // 采样率
     double _temperature = MS5611_NOT_READ;   // 温度
     double _pressure = MS5611_NOT_READ;      // 气压
-    double _pressureOffset = 0;              // 气压偏移
-    double _temperatureOffset = 0;           // 温度偏移
     double _height = MS5611_NOT_READ;        // 海拔高度
+
+    bool _compensation = true;      // 补偿状态
+    double _pressureOffset = 0;     // 气压偏移
+    double _temperatureOffset = 0;  // 温度偏移
 
     double _T0 = 0;                           // 初始温度
     double _P0 = 0;                           // 初始气压

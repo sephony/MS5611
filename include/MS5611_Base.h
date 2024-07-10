@@ -209,6 +209,25 @@ public:
     void setCompensation(bool flag = true) { _compensation = flag; };
 
     /*
+     * @brief 获取设备ID
+     * @return 设备ID
+     * @details _deviceID is a SHIFT XOR merge of 7 PROM registers, reasonable unique
+     */
+    uint32_t getDeviceID() const { return _deviceID; };
+
+    /*
+     * @brief 获得最近一次读取的时间
+     * @return 时间（ms）
+     */
+    uint32_t getlastRead() const { return _lastRead; };
+
+    /*
+     * @brief 获得最近两次读取的时间间隔
+     * @return 时间（ms）
+     */
+    uint32_t getTimeBetweenRead() const { return _lastRead - _preRead; };
+
+    /*
      * @brief 获得上一次读取的结果（仅IIC通信时返回有效值）
      * @return 0: 成功
      *         1: 数据太长超过发送缓存区
@@ -220,27 +239,16 @@ public:
     int getLastResult() const { return _result; };
 
     /*
-     * @brief 获取设备ID
-     * @return 设备ID
-     * @details _deviceID is a SHIFT XOR merge of 7 PROM registers, reasonable unique
-     */
-    uint32_t getDeviceID() const { return _deviceID; };
-
-    /*
-     * @brief 获得最后一次读取的时间
-     * @return 时间（ms）
-     */
-    uint32_t lastRead() const { return _lastRead; };
-
-    /*
      * @brief 列出传感器出厂校准值（C0~C7）及读取的ADC转换值(D1、D2)
      */
     void list();
 
+#ifdef MS5611_DEBUG
     /*
-     * @brief 列出传感器出厂校准值（C0~C7）及读取的ADC转换值(D1、D2)
+     * @brief 读取传感器数据并打印温度、气压、相对高度
      */
-    void debug();
+    void debug_print();
+#endif
 
 protected:
     virtual int command(const uint8_t command) = 0;
@@ -277,7 +285,8 @@ private:
     Filter H_filter;                          // 高度滤波器
     Filter P_filter;                          // 气压滤波器
 
-    uint32_t _lastRead = MS5611_NOT_READ;  // 最后一次读取的时间
+    uint32_t _preRead = MS5611_NOT_READ;   // 上上次读取的时间
+    uint32_t _lastRead = MS5611_NOT_READ;  // 最近一次读取的时间
     uint32_t _deviceID = MS5611_NOT_READ;  // 设备ID
 };
 

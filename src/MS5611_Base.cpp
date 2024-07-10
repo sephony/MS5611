@@ -81,6 +81,7 @@ int MS5611_Base::read(osr_t overSamplingRate) {
     _temperature = (double)TEMP * 0.01 + _temperatureOffset;
     _pressure = (double)P * 0.01 + _pressureOffset;
 
+    _preRead = _lastRead;
     _lastRead = millis();
     return MS5611_READ_OK;
 }
@@ -155,6 +156,24 @@ void MS5611_Base::list() {
     Serial.printf("Pressure: %.2f\n", _pressure);
 }
 
+#ifdef MS5611_DEBUG
+void MS5611_Base::debug_print() {
+    auto start_ms5611 = millis();
+    read();
+    auto stop_ms5611 = millis();
+    Serial.print("Temperature: ");
+    Serial.print(_temperature, 2);
+    Serial.print(" C, Pressure: ");
+    Serial.print(_pressure, 2);
+    Serial.print(" mBar, Height: ");
+    Serial.print(getRelativeHeight(), 2);
+    Serial.print(" m,\t Duration: ");
+    Serial.print(stop_ms5611 - start_ms5611);
+    Serial.println(" ms");
+}
+
+#endif
+
 // protected
 void MS5611_Base::convert(const uint8_t addr, osr_t overSamplingRate) {
     // ADC转换时间与过采样率的关系
@@ -191,19 +210,4 @@ void MS5611_Base::convert(const uint8_t addr, osr_t overSamplingRate) {
         yield();
         delayMicroseconds(10);
     }
-}
-
-void MS5611_Base::debug() {
-    auto start_ms5611 = millis();
-    read();
-    auto stop_ms5611 = millis();
-    Serial.print("Temperature: ");
-    Serial.print(_temperature, 2);
-    Serial.print(" C, Pressure: ");
-    Serial.print(_pressure, 2);
-    Serial.print(" mBar, Height: ");
-    Serial.print(getRelativeHeight(), 2);
-    Serial.print(" m,\t Duration: ");
-    Serial.print(stop_ms5611 - start_ms5611);
-    Serial.println(" ms");
 }

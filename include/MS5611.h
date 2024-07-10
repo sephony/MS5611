@@ -1,7 +1,7 @@
 /*
  * @author      sephony
  * @date        2024-07-09
- * @version     1.2.0
+ * @version     1.1.0
  * @brief       MS5611气压传感器驱动库
  * @details     本库基于MS5611传感器，实现了IIC和SPI两种通信方式的驱动库。
  *------------------------------------------------------------------------------
@@ -37,7 +37,7 @@
 #include <MS5611_IIC.h>
 #include <MS5611_SPI.h>
 
-#define MS5611_LIB_VERSION (F("0.0.1-alpha"))
+#define MS5611_LIB_VERSION (F("1.1.0"))
 
 class MS5611 {
 public:
@@ -188,6 +188,25 @@ public:
     void setCompensation(bool flag = true) { _ms5611.setCompensation(flag); };
 
     /*
+     * @brief 获取设备ID
+     * @return 设备ID
+     * @details _deviceID is a SHIFT XOR merge of 7 PROM registers, reasonable unique
+     */
+    uint32_t getDeviceID() const { return _ms5611.getDeviceID(); };
+
+    /*
+     * @brief 获得最近一次读取的时间
+     * @return 时间（ms）
+     */
+    uint32_t getlastRead() const { return _ms5611.getlastRead(); };
+
+    /*
+     * @brief 获得最近两次读取的时间间隔
+     * @return 时间（ms）
+     */
+    uint32_t getTimeBetweenRead() const { return _ms5611.getTimeBetweenRead(); };
+
+    /*
      * @brief 获得上一次读取的结果（仅IIC通信时返回有效值）
      * @return 0: 成功
      *         1: 数据太长超过发送缓存区
@@ -199,27 +218,16 @@ public:
     int getLastResult() const { return _ms5611.getLastResult(); };
 
     /*
-     * @brief 获取设备ID
-     * @return 设备ID
-     * @details _deviceID is a SHIFT XOR merge of 7 PROM registers, reasonable unique
-     */
-    uint32_t getDeviceID() const { return _ms5611.getDeviceID(); };
-
-    /*
-     * @brief 获得最后一次读取的时间
-     * @return 时间（ms）
-     */
-    uint32_t lastRead() const { return _ms5611.lastRead(); };
-
-    /*
      * @brief 列出传感器出厂校准值（C0~C7）及读取的ADC转换值(D1、D2)
      */
     void list() { _ms5611.list(); };
 
+#ifdef MS5611_DEBUG
     /*
-     * @brief 列出传感器出厂校准值（C0~C7）及读取的ADC转换值(D1、D2)
+     * @brief 读取传感器数据并打印温度、气压、相对高度
      */
-    void debug() { _ms5611.debug(); };
+    void debug_print() { _ms5611.debug_print(); };
+#endif
 
 private:
     MS5611_Base& _ms5611;

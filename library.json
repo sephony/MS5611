@@ -1,6 +1,6 @@
 {
   "name": "MS5611",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "MS5611 for HIT Rocket team",
   "keywords": "MS5611, CADC, CAUDC, HIT",
   "repository": {
@@ -19,5 +19,6 @@
   "license": "MIT",
   "homepage": "https://github.com/sephony/MS5611",
   "frameworks": "arduino",
-  "platforms": "*"
+  "platforms": "Espressif32",
+  "tags": "MS5611, CADC, CAUDC, HIT"
 }

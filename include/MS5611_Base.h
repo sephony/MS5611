@@ -256,6 +256,7 @@ protected:
     virtual uint32_t readADC() = 0;
 
     void convert(const uint8_t addr, osr_t overSamplingRate);
+    bool checkCRC();
 
     uint16_t C[8];  // 出厂校准值
     uint32_t D1;    // 数字压力值

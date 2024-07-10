@@ -11,7 +11,6 @@ bool MS5611_Base::reset() {
     }
 
     //  read factory calibrations from EEPROM.
-    bool ROM_OK = true;
     for (uint8_t reg = 0; reg < 8; ++reg) {
         //  used indices match datasheet.
         //  C[0] == manufacturer - read but not used;
@@ -22,12 +21,8 @@ bool MS5611_Base::reset() {
         _deviceID <<= 4;
         _deviceID ^= tmp;
         //  Serial.println(readProm(reg));
-
-        if (reg > 0) {
-            ROM_OK = ROM_OK && (tmp != 0);
-        }
     }
-    return ROM_OK;
+    return checkCRC();
 }
 
 int MS5611_Base::read(osr_t overSamplingRate) {
@@ -210,4 +205,40 @@ void MS5611_Base::convert(const uint8_t addr, osr_t overSamplingRate) {
         yield();
         delayMicroseconds(10);
     }
+}
+
+bool MS5611_Base::checkCRC() {
+    uint8_t zero = 1;          // 标志位，用于检查EEPROM是否全为零
+    uint32_t res = 0;          // 存储计算出的CRC值
+    uint8_t crc = C[7] & 0xF;  // 从传入的校准值数组的最后一个元素中提取原始CRC值。
+
+    C[7] &= 0xFF00;  // 清除C[7]中的CRC值，以便进行计算
+
+    // 检查EEPROM是否全为零
+    for (uint8_t i = 0; i < 8; ++i) {
+        if (C[i] != 0) {
+            zero = 0;
+            break;
+        }
+    }
+    if (zero) return false;
+
+    // 每个C[i]元素被分为两个字节处理，所以总共处理16个字节
+    for (uint8_t i = 0; i < 16; ++i) {
+        if (i & 1)
+            res ^= ((C[i >> 1]) & 0x00FF);
+        else
+            res ^= (C[i >> 1] >> 8);
+        // 通过左移和条件异或操作来处理每个位的CRC计算
+        for (uint8_t j = 8; j > 0; --j) {
+            if (res & 0x8000)
+                res ^= 0x1800;
+            res <<= 1;
+        }
+    }
+    // 恢复原始CRC值
+    C[7] |= crc;
+    if (crc == ((res >> 12) & 0xF))
+        return true;
+    return false;
 }

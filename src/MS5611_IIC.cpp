@@ -1,10 +1,5 @@
 #include <MS5611_IIC.h>
 
-/////////////////////////////////////////////////////
-//
-//  PUBLIC
-//
-
 #if defined(ESP8266) || defined(ESP32)
 
 bool MS5611_IIC::begin() {
@@ -30,10 +25,6 @@ bool MS5611_IIC::isConnected() {
     return (_wire->endTransmission() == 0);
 }
 
-/////////////////////////////////////////////////////
-//
-//  PRIVATE
-//
 int MS5611_IIC::command(const uint8_t command) {
     yield();
     _wire->beginTransmission(_address);
@@ -41,8 +32,8 @@ int MS5611_IIC::command(const uint8_t command) {
     _result = _wire->endTransmission();
     return _result;
 }
+
 uint16_t MS5611_IIC::readProm(uint8_t reg) {
-    //  last EEPROM register is CRC - Page 13 datasheet.
     uint8_t promCRCRegister = 7;
     if (reg > promCRCRegister) return 0;
 

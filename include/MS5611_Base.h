@@ -146,8 +146,9 @@ public:
      * @note 默认为仅使用气压计算高度(`ONLY_PRESSURE`)，若需要使用气压温度混合计算高度，请设置`mode`为`MIXED`
      * @note 采样间隔非常重要，不同的采样间隔会影响最终的平均值！loop程序中实时采样的间隔尽量与此处设置的间隔一致。
      *       或者添加偏移量，使得采样间隔的误差对最终结果的影响降到最低。
+     * @note 使用`getTimeBetweenRead()`函数获得最近两次读取的时间间隔，以便调整`delay_time`
      */
-    void init(uint32_t delay_time = 30, uint8_t n = 100, h_mode mode = ONLY_PRESSURE);
+    void init(uint32_t delay_time = 30, uint32_t n = 100, h_mode mode = ONLY_PRESSURE);
 
     /*
      * @brief 获得初始平均温度、气压与海拔高度
@@ -168,19 +169,19 @@ public:
      * @brief 获得当前温度偏移
      * @return 温度偏移（℃）
      */
-    double getTemperatureOffset() { return _temperatureOffset; };
+    double getTemperatureOffset() const { return _temperatureOffset; };
 
     /*
      * @brief 获得当前气压偏移
      * @return 气压偏移（kPa）
      */
-    double getPressureOffset() { return _pressureOffset; };
+    double getPressureOffset() const { return _pressureOffset; };
 
     /*
      * @brief 获得当前补偿状态（是否开启）
      * @return 0: 未开启; 1: 开启
      */
-    bool getCompensation() { return _compensation; };
+    bool getCompensation() const { return _compensation; };
 
     /*
      * @brief 设置采样率
@@ -241,21 +242,46 @@ public:
     /*
      * @brief 列出传感器出厂校准值（C0~C7）及读取的ADC转换值(D1、D2)
      */
-    void list();
+    void list() const;
 
-#ifdef MS5611_DEBUG
     /*
      * @brief 读取传感器数据并打印温度、气压、相对高度
+     * @param delay_time 两次采样（read）间隔时间（ms）
      */
-    void debug_print();
-#endif
+    void print(uint32_t delay_time = 0);
 
 protected:
+    /*
+     * @brief 向MS5611从机发送命令
+     * @param command 命令
+     */
     virtual int command(const uint8_t command) = 0;
+
+    /*
+     * @brief 读取出厂PROM数据
+     * @param reg 0~7（函数内部转化位寄存器地址）
+     * @return 16bit 校准值
+     */
     virtual uint16_t readProm(uint8_t reg) = 0;
+
+    /*
+     * @brief 执行ADC数模转换
+     * @param addr 命令
+     * @param overSamplingRate 采样率
+     * @note 采样率越高，精度越高，但是转换时间越长
+     */
+    void convert(const uint8_t addr, osr_t overSamplingRate);
+
+    /*
+     * @brief 读取ADC转换结果
+     * @return 24bit 气压/温度值
+     */
     virtual uint32_t readADC() = 0;
 
-    void convert(const uint8_t addr, osr_t overSamplingRate);
+    /*
+     * @brief 循环冗余校验（CRC）
+     * @return 0: 校验失败; 1: 校验成功
+     */
     bool checkCRC();
 
     uint16_t C[8];  // 出厂校准值
@@ -289,6 +315,9 @@ private:
     uint32_t _preRead = MS5611_NOT_READ;   // 上上次读取的时间
     uint32_t _lastRead = MS5611_NOT_READ;  // 最近一次读取的时间
     uint32_t _deviceID = MS5611_NOT_READ;  // 设备ID
+
+    bool flag_getHeight = false;          // 是否已经计算过高度
+    bool flag_getRelativeHeight = false;  // 是否已经计算过相对高度
 };
 
 #endif  // MS5611_BASE_H

@@ -1,20 +1,6 @@
-//
-//    FILE: MS5611.cpp
-//  AUTHOR: Qiao Dong
-// VERSION: 0.0.1
-// PURPOSE: MS5611 (SPI) Temperature & Pressure library for ESP32 with Arduino framework
-//     URL: https://github.com/QiaoDong1216/MS5611
-//
-//  HISTORY: see changelog.md
-
 #include <MS5611_SPI.h>
 
-/*********************************PRIVATE**************************************/
-
 bool MS5611_SPI::begin() {
-    //  print experimental message.
-    //  Serial.println(MS5611_SPI_LIB_VERSION);
-    //  SPI
     pinMode(_ss, OUTPUT);
     digitalWrite(_ss, HIGH);
     if (_sck == 255 && _miso == 255 && _mosi == 255) {
@@ -72,7 +58,6 @@ bool MS5611_SPI::end() {
     return true;
 }
 
-/*********************************PRIVATE**************************************/
 int MS5611_SPI::command(const uint8_t command) {
     yield();
     digitalWrite(_ss, LOW);
@@ -89,7 +74,6 @@ int MS5611_SPI::command(const uint8_t command) {
 }
 
 uint16_t MS5611_SPI::readProm(uint8_t reg) {
-    //  last EEPROM register is CRC - Page 13 datasheet.
     uint8_t promCRCRegister = 7;
     if (reg > promCRCRegister) return 0;
 
@@ -115,7 +99,6 @@ uint16_t MS5611_SPI::readProm(uint8_t reg) {
 
 uint32_t MS5611_SPI::readADC() {
     //  command(MS5611_CMD_READ_ADC);
-
     uint32_t value = 0;
 
     digitalWrite(_ss, LOW);

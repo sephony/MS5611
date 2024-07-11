@@ -48,10 +48,7 @@ void setup() {
             delay(1000);
         }
     }
-    ms5611.setOversampling(OSR_ULTRA_HIGH);
     ms5611.init();  // 获取初始平均高度
-    ms5611.list();  // 列出传感器出厂校准值（C0~C7）及读取的ADC转换值(D1、D2)
-    ms5611.setPressureOffset(0.2);
 }
 
 void loop() {

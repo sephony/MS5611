@@ -12,7 +12,16 @@ public:
 
     MS5611_SPI(int8_t ss) : MS5611_SPI(255, 255, 255, ss) {}
 
+    /*
+     * @brief 初始化传感器
+     * @return bool
+     */
     bool begin() override;
+
+    /*
+     * @brief 检查传感器是否成功连接
+     * @return bool
+     */
     bool isConnected() override;
 
     //       speed in Hz
@@ -24,17 +33,30 @@ public:
     bool end();
 
 private:
+    /*
+     * @brief 向MS5611从机发送命令
+     * @param command 命令
+     */
     int command(const uint8_t command) override;
+
+    /*
+     * @brief 读取出厂PROM数据
+     * @param reg 0~7（函数内部转化位寄存器地址）
+     * @return 16bit 校准值
+     */
     uint16_t readProm(uint8_t reg) override;
+
+    /*
+     * @brief 读取ADC转换结果
+     * @return 24bit 气压/温度值
+     */
     uint32_t readADC() override;
 
-    uint8_t _address;
-
     //  SPI
-    uint8_t _sck;
-    uint8_t _miso;
-    uint8_t _mosi;
-    uint8_t _ss;
+    uint8_t _sck;   //  SCK
+    uint8_t _miso;  //  MISO
+    uint8_t _mosi;  //  MOSI
+    uint8_t _ss;    //  SS
     bool _hwSPI = true;
     uint32_t _SPIspeed = 1000000;
     uint8_t swSPI_transfer(uint8_t value);

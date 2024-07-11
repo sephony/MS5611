@@ -4,6 +4,7 @@
  * @version     1.1.0
  * @brief       MS5611气压传感器驱动库
  * @details     本库基于MS5611传感器，实现了IIC和SPI两种通信方式的驱动库。
+ * URL          https://github.com/sephony/MS5611
  *------------------------------------------------------------------------------
  * MS5611-01BA数据手册:
  *
@@ -125,8 +126,9 @@ public:
      * @note 默认为仅使用气压计算高度(`ONLY_PRESSURE`)，若需要使用气压温度混合计算高度，请设置`mode`为`MIXED`
      * @note 采样间隔非常重要，不同的采样间隔会影响最终的平均值！loop程序中实时采样的间隔尽量与此处设置的间隔一致。
      *       或者添加偏移量，使得采样间隔的误差对最终结果的影响降到最低。
+     *      * @note 使用`getTimeBetweenRead()`函数获得最近两次读取的时间间隔，以便调整`delay_time`
      */
-    void init(uint32_t delay_time = 30, uint8_t n = 100, h_mode mode = ONLY_PRESSURE) { return _ms5611.init(delay_time, n, mode); };
+    void init(uint32_t delay_time = 30, uint32_t n = 100, h_mode mode = ONLY_PRESSURE) { return _ms5611.init(delay_time, n, mode); };
 
     /*
      * @brief 获得初始平均温度、气压与海拔高度
@@ -147,19 +149,19 @@ public:
      * @brief 获得当前温度偏移
      * @return 温度偏移（℃）
      */
-    double getTemperatureOffset() { return _ms5611.getTemperatureOffset(); };
+    double getTemperatureOffset() const { return _ms5611.getTemperatureOffset(); };
 
     /*
      * @brief 获得当前气压偏移
      * @return 气压偏移（kPa）
      */
-    double getPressureOffset() { return _ms5611.getPressureOffset(); };
+    double getPressureOffset() const { return _ms5611.getPressureOffset(); };
 
     /*
      * @brief 获得当前补偿状态（是否开启）
      * @return 0: 未开启; 1: 开启
      */
-    bool getCompensation() { return _ms5611.getCompensation(); };
+    bool getCompensation() const { return _ms5611.getCompensation(); };
 
     /*
      * @brief 设置采样率
@@ -220,14 +222,13 @@ public:
     /*
      * @brief 列出传感器出厂校准值（C0~C7）及读取的ADC转换值(D1、D2)
      */
-    void list() { _ms5611.list(); };
+    void list() const { _ms5611.list(); };
 
-#ifdef MS5611_DEBUG
     /*
      * @brief 读取传感器数据并打印温度、气压、相对高度
+     * @param delay_time 两次采样（read）间隔时间（ms）
      */
-    void debug_print() { _ms5611.debug_print(); };
-#endif
+    void print(uint32_t delay_time = 0) { _ms5611.print(); };
 
 private:
     MS5611_Base& _ms5611;

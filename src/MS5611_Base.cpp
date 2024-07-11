@@ -10,55 +10,44 @@ bool MS5611_Base::reset() {
         delayMicroseconds(10);
     }
 
-    //  read factory calibrations from EEPROM.
+    // 从EEPROM中读取出厂校准值
     for (uint8_t reg = 0; reg < 8; ++reg) {
-        //  used indices match datasheet.
-        //  C[0] == manufacturer - read but not used;
-        //  C[7] == CRC.
         uint16_t tmp = readProm(reg);
         C[reg] = tmp;
         //  _deviceID is a SHIFT XOR merge of 7 PROM registers, reasonable unique
         _deviceID <<= 4;
         _deviceID ^= tmp;
-        //  Serial.println(readProm(reg));
     }
     return checkCRC();
 }
 
 int MS5611_Base::read(osr_t overSamplingRate) {
+    // 读取数字压力值
     convert(MS5611_CMD_CONVERT_D1, overSamplingRate);
     if (_result) return _result;
-    //  NOTE: D1 and D2 seem reserved in MBED (NANO BLE)
     D1 = readADC();
     if (_result) return _result;
 
+    // 读取数字温度值
     convert(MS5611_CMD_CONVERT_D2, overSamplingRate);
     if (_result) return _result;
     D2 = readADC();
     if (_result) return _result;
 
-    //  TEST VALUES - comment lines above
-    //  uint32_t D1 = 9085466;
-    //  uint32_t D2 = 8569150;
-
-    //  TEMP & PRESS MATH - PAGE 7/20
     dT = D2 - (((uint32_t)C[5]) << 8);
     TEMP = 2000 + (int64_t)dT * C[6] / 8388608;
-
     OFF = (int64_t)C[2] * 65536 + dT * (int64_t)C[4] / 128;
     SENS = (int64_t)C[1] * 32768 + dT * (int64_t)C[3] / 256;
 
+    // 二阶温度补偿
     if (_compensation) {
-        //  second order tempreture compensation - PAGE 8/20
-        //  COMMENT OUT < 2000 CORRECTION IF NOT NEEDED
-        //  NOTE TEMPERATURE IS IN 0.01 C
-        if (TEMP < 2000) {
+        if (TEMP < 2000) {  //  TEMP < -15℃
             int32_t aux = (2000 - TEMP) * (2000 - TEMP);
             int32_t T2 = (int64_t)dT * dT / 2147483647;
             int64_t OFF2 = (5 * aux) / 2;
             int64_t SENS2 = (5 * aux) / 4;
-            //  COMMENT OUT < -1500 CORRECTION IF NOT NEEDED
-            if (TEMP < -1500) {
+
+            if (TEMP < -1500) {  //  TEMP < -15℃
                 aux = (TEMP + 1500) * (TEMP + 1500);
                 OFF2 += 7 * aux;
                 SENS2 += (11 * aux) / 2;
@@ -66,52 +55,59 @@ int MS5611_Base::read(osr_t overSamplingRate) {
             TEMP -= T2;
             OFF -= OFF2;
             SENS -= SENS2;
-            // Serial.println("TEMP < 2000");
         }
-        //  END SECOND ORDER COMPENSATION
     }
-
     P = (int32_t)((D1 * SENS / 2097152 - OFF) / 32768);
 
+    // 计算温度与气压
     _temperature = (double)TEMP * 0.01 + _temperatureOffset;
     _pressure = (double)P * 0.01 + _pressureOffset;
 
+    // 采样时间
     _preRead = _lastRead;
     _lastRead = millis();
+
+    // 清除标志位
+    flag_getHeight = false;
+    flag_getRelativeHeight = false;
     return MS5611_READ_OK;
 }
 
 double MS5611_Base::getHeight(h_mode mode) {
-    switch (mode) {
-    case ONLY_PRESSURE:
-        _height = 44330.0 * (1.0 - pow(_pressure / 1013.25, 1 / 5.255));  // barometric
-        break;
-    case MIXED:
-        _height = (pow((1013.25 / _pressure), 1.0 / 5.257) - 1) * (_temperature + 273.15) / 0.65;  // hypsometric
-        break;
-    default:
-        Serial.println("getHeight() - unknown mode(the mode must be one of ONLY_PRESSURE, MIXED)");
-        return -1;
+    if (!flag_getHeight) {
+        switch (mode) {
+        case ONLY_PRESSURE:
+            _height = 44330.0 * (1.0 - pow(_pressure / 1013.25, 1 / 5.255));  // barometric
+            break;
+        case MIXED:
+            _height = (pow((1013.25 / _pressure), 1.0 / 5.257) - 1) * (_temperature + 273.15) / 0.65;  // hypsometric
+            break;
+        default:
+            Serial.println("getHeight() - unknown mode(the mode must be one of ONLY_PRESSURE, MIXED)");
+            return -1;
+        }
+        flag_getHeight = true;
     }
     return _height;
 }
 
-void MS5611_Base::init(uint32_t delay_time, uint8_t n, h_mode mode) {
+void MS5611_Base::init(uint32_t delay_time, uint32_t n, h_mode mode) {
     for (int i = 0; i < n; i++) {
         read();
         _T0 += _temperature;
         _P0 += _pressure;
         _H0 += getHeight(mode);
-        Serial.print("Temperature: ");
-        Serial.print(_temperature, 2);
-        Serial.print(" C, Pressure: ");
-        Serial.print(_pressure, 2);
-        Serial.println(" mBar");
-        delay(delay_time);  // 经验数字，保证气压采集正确
+        // Serial.print("Temperature: ");
+        // Serial.print(_temperature, 2);
+        // Serial.print(" C, Pressure: ");
+        // Serial.print(_pressure, 2);
+        // Serial.println(" mBar");
+        delay(delay_time);
     }
     _T0 /= n;
     _P0 /= n;
     _H0 /= n;
+    Serial.println("MS5611 Initialization completed!");
     Serial.printf("T0: %.2f C, P0: %.2f mBar, H0: %.2f m\n", _T0, _P0, _H0);
 }
 
@@ -129,12 +125,15 @@ double MS5611_Base::getInit(const std::string& data) {
 }
 
 double MS5611_Base::getRelativeHeight(h_mode mode) {
-    double relative_height = getHeight(mode) - _H0;
-    _height_filter = H_filter.Butterworth50HzLPF(relative_height);
+    if (!flag_getRelativeHeight) {
+        double relative_height = getHeight(mode) - _H0;
+        _height_filter = H_filter.Butterworth50HzLPF(relative_height);
+        flag_getRelativeHeight = true;
+    }
     return _height_filter;
 }
 
-void MS5611_Base::list() {
+void MS5611_Base::list() const {
     for (uint8_t reg = 0; reg < 8; ++reg) {
         Serial.printf("C%d", reg);
         Serial.print(": ");
@@ -151,23 +150,23 @@ void MS5611_Base::list() {
     Serial.printf("Pressure: %.2f\n", _pressure);
 }
 
-#ifdef MS5611_DEBUG
-void MS5611_Base::debug_print() {
+void MS5611_Base::print(uint32_t delay_time) {
     auto start_ms5611 = millis();
     read();
     auto stop_ms5611 = millis();
-    Serial.print("Temperature: ");
+    Serial.print("温度: ");
     Serial.print(_temperature, 2);
-    Serial.print(" C, Pressure: ");
+    Serial.print(" ℃, 气压: ");
     Serial.print(_pressure, 2);
-    Serial.print(" mBar, Height: ");
+    Serial.print(" mBar, 相对高度: ");
     Serial.print(getRelativeHeight(), 2);
-    Serial.print(" m,\t Duration: ");
+    Serial.print(" m, 单次采样用时: ");
     Serial.print(stop_ms5611 - start_ms5611);
+    Serial.print(" ms, 两次采样间隔: ");
+    Serial.print(getTimeBetweenRead());
     Serial.println(" ms");
+    delay(delay_time);
 }
-
-#endif
 
 // protected
 void MS5611_Base::convert(const uint8_t addr, osr_t overSamplingRate) {
